@@ -1,22 +1,51 @@
-"""This module implements a Wavelet tree"""
+"""
+This module implements a Wavelet tree
+"""
 
 import time
+import resource
+import sys
 
 class WaveletTree(object):
-    """This class implements Wavelet tree structure"""
-    def __init__(self, string):
-        self.string = string
+    """
+    This class implements Wavelet tree structure
+    """
+    def __init__(self, data):
+        """
+        Creates wavelet tree from the data given
+
+        :param data: data loaded from the file from which we're
+            creating the tree
+        """
+        self.data = data
         self.root_node = WaveletNode()
 
-        self.root_node.create_tree(self.string)
+        self.root_node.create_tree(self.data)
 
     def rank(self, position, character):
-        """Delegates rank method to node"""
+        """
+        Delegates rank method to node and returns rank
+        of the character at certain position
+        """
         return self.root_node.rank(position, character)
 
 class WaveletNode(object):
-    """This class implements a node in a Wavelet tree"""
+    """
+    This class implements a node in a Wavelet tree
+    """
     def __init__(self):
+        """
+        Initialization of the class attributes
+
+        :attribute char_dictionary: every character of the alphabet
+            gets a bit value (0 or 1)
+        :attribute bit_vector: list of values (0 or 1) for every
+            character in the string
+        :attribute left and right: references to left and right
+            (child) nodes
+        :attribute bit_pointer: pointer to (child) node reference
+            for every character of the alphabet in the current node
+        """
         self.char_dictionary = {}
         self.bit_vector = []
         self.alphabet_length = 0
@@ -25,9 +54,17 @@ class WaveletNode(object):
         self.bit_pointer = {}
 
     def dictionary_init(self, alphabet):
-        """Initialization of the alphabet dictionary"""
+        """
+        Initialization of the alphabet dictionary
+        
+        :param alphabet: list of all the (different) characters in the data
+        """
         if(self.alphabet_length > 2):
-            middle_index = (len(alphabet) - 1) / 2
+            """
+            even-length alphabets get sliced in the middle,
+            at odd-length ones left node gets one character more
+            """
+            middle_index = ((len(alphabet) + 1) / 2)
         else:
             middle_index = 1
             
@@ -38,7 +75,11 @@ class WaveletNode(object):
             self.char_dictionary[char] = 1
 
     def create_tree(self, string):
-        """Creates Wavelet Tree for input string"""
+        """
+        Recursively creates wavelet tree for input string
+
+        :param string: data from which we're creating the node
+        """
         alphabet = []
         left_string = ""
         right_string = ""
@@ -81,15 +122,16 @@ class WaveletNode(object):
                 bit_value = self.char_dictionary[char]
                 self.bit_vector.append(bit_value)
 
-    def rank(self, position, character):
-        """Returns the number of occurences
-        of "character" up to index "position" in a string.
+    def rank(self, index, character):
+        """
+        Returns the number of occurences
+        of character up to specified index in a string.
         """
         bit = self.char_dictionary[character]
         bit_counter = 0
 
         # Counting the number of the same bit values as the character's bit
-        for char in self.bit_vector[0 : position + 1]:
+        for char in self.bit_vector[0 : index + 1]:
             if char == bit:
                 bit_counter += 1
 
@@ -101,20 +143,28 @@ class WaveletNode(object):
             return bit_counter
 
 class Fasta(object):
-    """This class handles fasta file"""
+    """
+    This class handles fasta file
+    """
     def __init__(self):
+        """
+        Data initialization
+        """
         self.conn_str = ""
         self.meta_data = ""
         self.data = ""
         self.length = -1
 
     def load(self, conn_str):
-        """Loads fasta file"""
+        """
+        Loads fasta file
+        """
         self.conn_str = conn_str
         
         data = open(self.conn_str, 'r')
         header = data.readline().strip()
 
+        #if added, storing header into meta_data
         if(header[0] == '>'):
             self.meta_data = header
         # Ignoring comments
@@ -136,17 +186,35 @@ if __name__ == "__main__":
     genome = Fasta()
     
     try:
-        genome.load("2.fasta")
+        # file path as command line argument
+        file_path = sys.argv[1]
+        character = ""
+        genome.load(file_path)
 
+        # populate the tree with data read from the file
         tree = WaveletTree(genome.data)
-        length = genome.length
-        print "A: " + str(tree.rank(length, 'A'))
-        print "T: " + str(tree.rank(length, 'T'))
-        print "G: " + str(tree.rank(length, 'G'))
-        print "C: " + str(tree.rank(length, 'C'))
-
+        
         execution_time = time.time() - start_time
-        print execution_time
+
+        print
+        print "Executed in: " + str(execution_time) + " seconds"
+        # function for measuring  memory usage
+        print "Memory used: " + str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss) + " kB"
+        print
+
+        # check the rank of the character
+        while 1:
+            print "Run 'rank' function for character (enter character) or exit with 'c': "
+            character = str(raw_input())
+            if character == 'c':
+                break
+            else:
+                length = genome.length
+                try:
+                    print character + ": " + str(tree.rank(length, character))
+                except KeyError:
+                    print "Character doesn't exist (and is case-sensitive)"
+                    break
 
     except IOError:
         print "File doesn't exist"
